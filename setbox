@@ -1,0 +1,114 @@
+#!/bin/bash
+
+usage() {
+    echo "Usage: setbox <RHOST> [LHOST] [LPORT] [-n <name>] [-d] [-h]"
+    echo ""
+    echo "This script sets up a hacking environment by defining key variables."
+    echo ""
+    echo "Options:"
+    echo "  -n, --name <name>  Set the target name (e.g., 'Lame')."
+    echo "                     This name is used for the TARGET_NAME variable and directory creation."
+    echo "  -d                 Create a dedicated directory for the target and navigate into it."
+    echo "                     The directory will be created at ~/hacking/<TARGET_NAME>."
+    echo "  -h, --help         Show this help message and exit."
+    echo ""
+    echo "Arguments:"
+    echo "  RHOST              The remote host IP address (e.g., 10.10.10.10). (Mandatory)"
+    echo "  LHOST              The local host IP address. (Optional)"
+    echo "  LPORT              The local port for a reverse shell listener. (Optional)"
+    echo ""
+    echo "Examples:"
+    echo "  setbox 10.10.10.10"
+    echo "  setbox 10.10.10.10 192.168.1.100"
+    echo "  setbox 10.10.10.10 192.168.1.100 4444"
+    echo "  setbox 10.10.10.10 -n Lame"
+    echo "  setbox 10.10.10.10 -n Legacy -d"
+    echo ""
+}
+
+original_dir=$(pwd)
+create_dir=false
+target_name=""
+
+while getopts ":n:dh-" opt; do
+    case ${opt} in
+        n )
+            target_name="$OPTARG"
+            ;;
+        d )
+            create_dir=true
+            ;;
+        h )
+            usage
+            exit 0
+            ;;
+        - )
+            case "${OPTARG}" in
+                name)
+                    if [[ -z "${!OPTIND}" || "${!OPTIND}" =~ ^- ]]; then
+                        echo "Error: Option '--name' requires an argument." >&2
+                        usage
+                        exit 1
+                    fi
+                    target_name="${!OPTIND}"
+                    OPTIND=$(( OPTIND + 1 ))
+                    ;;
+                help)
+                    usage
+                    exit 0
+                    ;;
+                *)
+                    echo "Error: Unknown option --${OPTARG}" >&2
+                    usage
+                    exit 1
+                    ;;
+            esac
+            ;;
+        \? )
+            echo "Error: Invalid option -$OPTARG" >&2
+            usage
+            exit 1
+            ;;
+        : )
+            echo "Error: Option -$OPTARG requires an argument." >&2
+            usage
+            exit 1
+            ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+if [ -z "$1" ]; then
+    echo "Error: RHOST IP address is required." >&2
+    usage
+    exit 1
+fi
+
+export RHOST="$1"
+export LHOST="$2"
+export LPORT="$3"
+export TARGET_NAME="$target_name"
+
+if [ "$create_dir" = true ]; then
+    if [ -z "$target_name" ]; then
+        echo "Error: A target name (-n) is required to create a directory." >&2
+        exit 1
+    fi
+    mkdir -p ~/hacking/"$target_name"
+    cd ~/hacking/"$target_name" || exit 1
+    echo "INFO: Changed directory to: $(pwd)"
+fi
+
+echo ""
+echo "=========================================================="
+echo "Hacking environment set up for '$TARGET_NAME'"
+echo "=========================================================="
+echo "  RHOST         : $RHOST"
+echo "  LHOST         : $LHOST"
+echo "  LPORT         : $LPORT"
+echo "  TARGET_NAME   : $TARGET_NAME"
+echo "=========================================================="
+echo ""
+
+cd "$original_dir"
